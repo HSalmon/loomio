@@ -37,7 +37,7 @@ task :events => :environment do    # Export all events, scramble users, scramble
         when "new_discussion", "new_motion"
           user = eventable.author if eventable
           group = eventable.group if eventable
-        when "new_comment", "new_vote", "motion_blocked", "membership_requested", "comment_liked"
+        when "new_comment", "new_vote", "motion_blocked", "membership_requested", "comment_liked", "mentioned_user"
           begin
             user = eventable.user if eventable
             group = eventable.group if eventable
