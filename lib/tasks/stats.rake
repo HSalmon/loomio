@@ -1,7 +1,9 @@
 namespace :stats do
   task :groups => :environment do    # Export all groups, scramble details of private ones
+    groups_csv_file = AWS::S3.new.buckets['loomio-public-log'].objects.create 'groups.csv'
+
     require 'csv'
-    CSV.open("tmp/groups.csv", "w") do |csv|
+    c = CSV.generate do |csv|
       csv << ["id", "name", "created_at", "viewable_by", "parent_id", "description", "memberships_count", "archived_at"]
       Group.all.each do |group|
         if group.viewable_by == :everyone
@@ -11,22 +13,30 @@ namespace :stats do
         end
       end
     end
+
+    groups_csv_file.write c
   end
 
   task :users => :environment do   # Export all users' create dates
+    users_csv_file = AWS::S3.new.buckets['loomio-public-log'].objects.create 'users.csv'
+
     require 'csv'
-    CSV.open("tmp/users.csv", "w") do |csv|
+    c = CSV.generate do |csv|
       csv << ["id", "created_at", "memberships_count"]
       User.all.each do |user|
         csv << [Digest::MD5.hexdigest(user.id.to_s), user.created_at, user.memberships_count]
       end
     end
+
+    users_csv_file.write c
   end
 
 task :events => :environment do    # Export all events, scramble users, scramble private groups & subgroups
+    events_csv_file = AWS::S3.new.buckets['loomio-public-log'].objects.create 'events.csv'
+
     require 'csv'
 
-    CSV.open("tmp/events.csv", "w") do |csv|
+    c = CSV.generate do |csv|
       csv << ["id", "user", "group", "parent_group", "kind", "created_at"]
       Event.all.each do |event|
         id = event.id
@@ -83,5 +93,6 @@ task :events => :environment do    # Export all events, scramble users, scramble
         csv << [id, user_id, group_id, parent_group_id, kind, created_at]
       end
     end
+    events_csv_file.write c
   end
 end
