@@ -2,6 +2,7 @@ class DiscussionsController < GroupBaseController
   load_and_authorize_resource :except => [:show, :new, :create, :index]
   before_filter :authenticate_user!, :except => [:show, :index]
   before_filter :check_group_read_permissions, :only => :show
+  after_filter :store_location, :only => :show
 
   def new
     @discussion = Discussion.new
@@ -48,7 +49,7 @@ class DiscussionsController < GroupBaseController
     @group = GroupDecorator.new(@discussion.group)
     @current_motion = @discussion.current_motion
     @vote = Vote.new
-    @history = @discussion.history
+    @activity = @discussion.activity
     if (not params[:proposal])
       if @current_motion
         @unique_votes = Vote.unique_votes(@current_motion)
@@ -68,11 +69,15 @@ class DiscussionsController < GroupBaseController
   end
 
   def add_comment
+    @discussion = Discussion.find(params[:id])
     comment = resource.add_comment(current_user, params[:comment])
     unless comment.valid?
       flash[:error] = "Comment could not be created."
+      redirect_to discussion_path(resource.id)
     end
-    redirect_to discussion_path(resource.id)
+    respond_to do |format|
+      format.js
+    end
   end
 
   def new_proposal
@@ -85,9 +90,7 @@ class DiscussionsController < GroupBaseController
 
   def edit_description
     @discussion = Discussion.find(params[:id])
-    description = params[:description]
-    @discussion.description = description
-    @discussion.save!
+    @discussion.set_description!(params[:description], current_user)
     @last_collaborator = User.find @discussion.originator.to_i
     respond_to do |format|
       format.js { render :action => 'update_version' }
@@ -95,9 +98,8 @@ class DiscussionsController < GroupBaseController
   end
 
   def edit_title
-    discussion = Discussion.find(params[:id])
-    discussion.title = params[:title]
-    discussion.save!
+    @discussion = Discussion.find(params[:id])
+    @discussion.set_title!(params[:title], current_user)
   end
 
   def show_description_history
@@ -129,7 +131,7 @@ class DiscussionsController < GroupBaseController
     @last_collaborator = User.find @discussion.originator.to_i
     respond_to do |format|
       format.js
-    end     
+    end
   end
 
   private
